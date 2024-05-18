@@ -15,6 +15,7 @@ __all__ = ['IMDER']
 class MSE(nn.Module):
     def __init__(self):
         super(MSE, self).__init__()
+        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     def forward(self, pred, real):
         diffs = torch.add(real, -pred)
@@ -24,8 +25,8 @@ class MSE(nn.Module):
         return mse
 
 # Set up the SDE (SDE is used to define Diffusion Process)
-device = 'cuda'
-def marginal_prob_std(t, sigma):
+# device = 'cpu'
+def marginal_prob_std(t, sigma, device='cpu'):
     """Compute the mean and standard deviation of $p_{0t}(x(t) | x(0))$.
 
     Args:
@@ -35,10 +36,11 @@ def marginal_prob_std(t, sigma):
     Returns:
       The standard deviation.
     """
+
     t = torch.as_tensor(t, device=device)
     return torch.sqrt((sigma ** (2 * t) - 1.) / 2. / np.log(sigma))
 
-def diffusion_coeff(t, sigma):
+def diffusion_coeff(t, sigma, device='cpu'):
     """Compute the diffusion coefficient of our SDE.
 
     Args:
@@ -73,6 +75,7 @@ class IMDER(nn.Module):
         self.text_dropout = args.text_dropout
         self.attn_mask = args.attn_mask
         self.MSE = MSE()
+        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
         combined_dim = 2 * (self.d_l + self.d_a + self.d_v)
 
@@ -183,9 +186,9 @@ class IMDER(nn.Module):
                 loss_score_l = torch.tensor(0)
                 # Generate samples from score-based models with the Euler_Maruyama_sampler
                 proj_x_a = Euler_Maruyama_sampler(self.score_a, self.marginal_prob_std_fn, self.diffusion_coeff_fn, text.size(0),
-                                                  device='cuda', condition=conditions)
+                                                  device=self.device, condition=conditions)
                 proj_x_v = Euler_Maruyama_sampler(self.score_v, self.marginal_prob_std_fn, self.diffusion_coeff_fn, text.size(0),
-                                                  device='cuda', condition=conditions)
+                                                  device=self.device, condition=conditions)
                 #  refine modality
                 proj_x_a = self.rec_a(proj_x_a)
                 proj_x_v = self.rec_v(proj_x_v)
@@ -197,9 +200,9 @@ class IMDER(nn.Module):
                 loss_score_v = torch.tensor(0)
                 # Generate samples from score-based models with the Euler_Maruyama_sampler
                 proj_x_l = Euler_Maruyama_sampler(self.score_l, self.marginal_prob_std_fn, self.diffusion_coeff_fn, text.size(0),
-                                                  device='cuda', condition=conditions)
+                                                  device=self.device, condition=conditions)
                 proj_x_a = Euler_Maruyama_sampler(self.score_a, self.marginal_prob_std_fn, self.diffusion_coeff_fn, text.size(0),
-                                                  device='cuda', condition=conditions)
+                                                  device=self.device, condition=conditions)
                 #  refine modality
                 proj_x_l = self.rec_l(proj_x_l)
                 proj_x_a = self.rec_a(proj_x_a)
@@ -211,9 +214,9 @@ class IMDER(nn.Module):
                 loss_score_a = torch.tensor(0)
                 # Generate samples from score-based models with the Euler_Maruyama_sampler
                 proj_x_l = Euler_Maruyama_sampler(self.score_l, self.marginal_prob_std_fn, self.diffusion_coeff_fn, text.size(0),
-                                                  device='cuda', condition=conditions)
+                                                  device=self.device, condition=conditions)
                 proj_x_v = Euler_Maruyama_sampler(self.score_v, self.marginal_prob_std_fn, self.diffusion_coeff_fn, text.size(0),
-                                                  device='cuda', condition=conditions)
+                                                  device=self.device, condition=conditions)
                 #  refine modality
                 proj_x_l = self.rec_l(proj_x_l)
                 proj_x_v = self.rec_v(proj_x_v)
@@ -225,7 +228,7 @@ class IMDER(nn.Module):
                 loss_score_v, loss_score_a = torch.tensor(0), torch.tensor(0)
                 # Generate samples from score-based models with the Euler_Maruyama_sampler
                 proj_x_l = Euler_Maruyama_sampler(self.score_l, self.marginal_prob_std_fn, self.diffusion_coeff_fn, text.size(0),
-                                                  device='cuda', condition=conditions)
+                                                  device=self.device, condition=conditions)
                 #  refine modality
                 proj_x_l = self.rec_l(proj_x_l)
                 loss_rec = self.MSE(proj_x_l, gt_l)
@@ -235,7 +238,7 @@ class IMDER(nn.Module):
                 loss_score_l, loss_score_a = torch.tensor(0), torch.tensor(0)
                 # Generate samples from score-based models with the Euler_Maruyama_sampler
                 proj_x_v = Euler_Maruyama_sampler(self.score_v, self.marginal_prob_std_fn, self.diffusion_coeff_fn, text.size(0),
-                                                  device='cuda', condition=conditions)
+                                                  device=self.device, condition=conditions)
                 #  refine modality
                 proj_x_v = self.rec_v(proj_x_v)
                 loss_rec = self.MSE(proj_x_v, gt_v)
@@ -245,7 +248,7 @@ class IMDER(nn.Module):
                 loss_score_l, loss_score_v = torch.tensor(0), torch.tensor(0)
                 # Generate samples from score-based models with the Euler_Maruyama_sampler
                 proj_x_a = Euler_Maruyama_sampler(self.score_a, self.marginal_prob_std_fn, self.diffusion_coeff_fn, text.size(0),
-                                                  device='cuda', condition=conditions)
+                                                  device=self.device, condition=conditions)
                 #  refine modality
                 proj_x_a = self.rec_a(proj_x_a)
                 loss_rec = self.MSE(proj_x_a, gt_a)

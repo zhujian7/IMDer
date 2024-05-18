@@ -113,7 +113,11 @@ def _run(args, num_workers=4, is_tune=False, from_sena=False):
     dataloader = MMDataLoader(args, num_workers)
 
     model = getattr(imder, 'IMDER')(args)
-    model = model.cuda()
+
+    cuda_available = torch.cuda.is_available()
+    print(f"CUDA available: {cuda_available}")
+    if cuda_available:
+        model = model.cuda()
 
     trainer = ATIO().getTrain(args)
 

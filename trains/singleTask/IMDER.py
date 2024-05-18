@@ -13,6 +13,7 @@ class IMDER():
         self.args = args
         self.criterion = nn.L1Loss() if args.train_mode == 'regression' else nn.CrossEntropyLoss()
         self.metrics = MetricsTop(args.train_mode).getMetics(args.dataset_name)
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     def do_train(self, model, dataloader, return_epoch_results=False):
         optimizer = optim.Adam(model.parameters(), lr=self.args.learning_rate)
@@ -29,14 +30,15 @@ class IMDER():
         best_valid = 1e8 if min_or_max == 'min' else 0
 
         # load pretrained
-        origin_model = torch.load('pt/pretrained-{}.pth'.format(self.args.dataset_name))
+        origin_model = torch.load('pt/pretrained-{}.pth'.format(self.args.dataset_name), map_location=self.device)
+
         net_dict = model.state_dict()
         new_state_dict = {}
         for k, v in origin_model.items():
             k = k.replace('Model.', '')
             new_state_dict[k] = v
         net_dict.update(new_state_dict)
-        model.load_state_dict(net_dict)
+        model.load_state_dict(net_dict, strict=False)
 
         while True:
             epochs += 1
